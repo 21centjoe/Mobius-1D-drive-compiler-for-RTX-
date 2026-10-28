@@ -1,0 +1,957 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balanced Ternary Compiler & Möbius Vector Flow Engine</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Fira Code', monospace;
+        }
+
+        body {
+            background-color: #030308;
+            color: #00f3ff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+            user-select: none;
+        }
+
+        /* Sci-Fi Glassmorphism Panels */
+        .hud-panel {
+            background: rgba(6, 11, 24, 0.85);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(0, 243, 255, 0.25);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(0, 243, 255, 0.05);
+        }
+
+        .hud-panel-pink {
+            border-color: rgba(255, 0, 127, 0.38);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 0, 127, 0.06);
+        }
+
+        /* Neon Glows */
+        .glow-cyan { text-shadow: 0 0 10px rgba(0, 243, 255, 0.8), 0 0 20px rgba(0, 243, 255, 0.4); }
+        .glow-pink { text-shadow: 0 0 10px rgba(255, 0, 127, 0.8), 0 0 20px rgba(255, 0, 127, 0.4); }
+        .glow-green { text-shadow: 0 0 10px rgba(0, 255, 102, 0.8), 0 0 20px rgba(0, 255, 102, 0.4); }
+
+        /* Custom Interactive Buttons */
+        .hud-btn {
+            background: rgba(0, 243, 255, 0.08);
+            border: 1px solid rgba(0, 243, 255, 0.4);
+            color: #00f3ff;
+            transition: all 0.15s ease-in-out;
+        }
+        .hud-btn:hover {
+            background: rgba(0, 243, 255, 0.25);
+            box-shadow: 0 0 14px rgba(0, 243, 255, 0.6);
+            border-color: #00f3ff;
+            transform: translateY(-1px);
+        }
+        .hud-btn:active {
+            transform: translateY(1px);
+        }
+
+        .hud-btn-active {
+            background: rgba(0, 243, 255, 0.3) !important;
+            border-color: #00f3ff !important;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.7) !important;
+            color: #ffffff !important;
+        }
+
+        .hud-btn-plus {
+            border-color: rgba(0, 255, 102, 0.5);
+            color: #00ff66;
+            background: rgba(0, 255, 102, 0.08);
+        }
+        .hud-btn-plus:hover {
+            background: rgba(0, 255, 102, 0.25);
+            box-shadow: 0 0 14px rgba(0, 255, 102, 0.6);
+            border-color: #00ff66;
+        }
+
+        .hud-btn-minus {
+            border-color: rgba(255, 0, 127, 0.5);
+            color: #ff007f;
+            background: rgba(255, 0, 127, 0.08);
+        }
+        .hud-btn-minus:hover {
+            background: rgba(255, 0, 127, 0.25);
+            box-shadow: 0 0 14px rgba(255, 0, 127, 0.6);
+            border-color: #ff007f;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(5, 5, 15, 0.5); }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 243, 255, 0.4); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 243, 255, 0.8); }
+
+        /* Scanline Overlay */
+        .scanline-grid {
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%),
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+
+        .editor-textarea {
+            background: rgba(3, 5, 14, 0.9);
+            color: #00f3ff;
+            outline: none;
+            resize: none;
+            caret-color: #ff007f;
+        }
+
+        .mobile-tab-active {
+            background: rgba(0, 243, 255, 0.25) !important;
+            border-color: #00f3ff !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+        }
+
+        .trit-badge-pos { background: rgba(0, 255, 102, 0.2); border: 1px solid #00ff66; color: #00ff66; }
+        .trit-badge-zero { background: rgba(0, 243, 255, 0.2); border: 1px solid #00f3ff; color: #00f3ff; }
+        .trit-badge-neg { background: rgba(255, 0, 127, 0.2); border: 1px solid #ff007f; color: #ff007f; }
+    </style>
+</head>
+<body class="flex flex-col relative w-screen h-screen bg-[#030308] text-[#00f3ff] overflow-hidden select-none">
+
+    <!-- Scanline CRT Effect -->
+    <div class="absolute inset-0 scanline-grid z-20 pointer-events-none"></div>
+
+    <!-- Header Navigation -->
+    <header class="hud-panel z-30 px-3 md:px-5 py-2 flex flex-wrap justify-between items-center border-b border-cyan-500/30 gap-2 shrink-0">
+        <div class="flex items-center space-x-2 md:space-x-3">
+            <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse glow-cyan"></div>
+            <h1 class="text-xs md:text-sm font-bold tracking-widest uppercase glow-cyan">
+                TERNARY COMPILER & FLOW ENGINE
+            </h1>
+            <span class="hidden sm:inline-block text-[9px] md:text-[10px] px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/30">
+                RADIX 3 // BALANCED-TRIT
+            </span>
+        </div>
+
+        <div class="flex items-center space-x-3 md:space-x-6 text-[10px] md:text-xs">
+            <div class="flex items-center space-x-1">
+                <span class="text-gray-400">FPS:</span>
+                <span id="fpsVal" class="font-bold text-emerald-400">60</span>
+            </div>
+            <div class="hidden xs:flex items-center space-x-1">
+                <span class="text-gray-400">PARTICLES:</span>
+                <span id="particleCountVal" class="font-bold text-cyan-300">1800</span>
+            </div>
+            <div id="audioToggleBtn" onclick="toggleAudio()" class="cursor-pointer text-gray-400 hover:text-cyan-400 transition-colors p-1">
+                [ AUDIO: <span id="audioStatusText" class="text-pink-500 font-bold">MUTED</span> ]
+            </div>
+            <div id="sysStatus" class="hidden sm:block text-emerald-400 font-semibold glow-green text-[10px] md:text-xs">
+                SYSTEM: SYNCED
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Screen Tabs -->
+    <nav class="lg:hidden z-30 flex bg-[#060a14] border-b border-cyan-500/30 p-1 gap-1 shrink-0">
+        <button id="tabBtnCanvas" onclick="switchMobileTab('canvas')" class="hud-btn mobile-tab-active flex-1 py-1.5 text-[11px] font-bold rounded uppercase">
+            🌐 Visualizer
+        </button>
+        <button id="tabBtnCompiler" onclick="switchMobileTab('compiler')" class="hud-btn flex-1 py-1.5 text-[11px] font-bold rounded uppercase">
+            ⚡ Compiler
+        </button>
+        <button id="tabBtnTelemetry" onclick="switchMobileTab('telemetry')" class="hud-btn flex-1 py-1.5 text-[11px] font-bold rounded uppercase">
+            📊 Telemetry
+        </button>
+    </nav>
+
+    <!-- Main Workspace -->
+    <main class="relative flex-1 w-full h-full flex flex-col lg:flex-row overflow-hidden">
+        
+        <!-- Main Canvas Area -->
+        <div id="canvasViewportArea" class="relative flex-1 h-full w-full overflow-hidden min-h-[250px]">
+            <canvas id="mainCanvas" class="absolute inset-0 w-full h-full z-0 cursor-crosshair touch-none"></canvas>
+
+            <!-- Mode Switcher (Vector Flow Field <-> 3D Möbius Manifold) -->
+            <div class="absolute top-2 left-2 md:top-4 md:left-4 z-30 flex gap-2 pointer-events-auto">
+                <button id="modeVectorBtn" onclick="switchVisualizerMode('vector')" class="hud-btn hud-btn-active px-3 py-1.5 rounded text-[10px] md:text-xs font-bold uppercase tracking-wider">
+                    🌊 Vector Flow Field
+                </button>
+                <button id="modeMobiusBtn" onclick="switchVisualizerMode('mobius')" class="hud-btn px-3 py-1.5 rounded text-[10px] md:text-xs font-bold uppercase tracking-wider">
+                    ♾️ 3D Möbius Manifold
+                </button>
+            </div>
+
+            <!-- Vector Field Interactive Force Overlay -->
+            <div id="vectorPanel" class="hud-panel absolute bottom-14 lg:bottom-4 left-2 md:left-4 w-[calc(100%-16px)] sm:w-80 md:w-88 p-3 rounded-md z-30 pointer-events-auto">
+                <div class="flex justify-between items-center mb-2 pb-1 border-b border-cyan-500/30">
+                    <h3 class="text-[11px] md:text-xs font-bold text-cyan-400 tracking-wider uppercase glow-cyan">
+                        Vector Field Mechanics & Manual Injection
+                    </h3>
+                    <span class="text-[9px] md:text-[10px] text-cyan-400/60">FORCE MATRIX</span>
+                </div>
+                
+                <!-- Manual Trit Injection -->
+                <div class="flex gap-1.5 mb-2.5">
+                    <button onclick="manualInject(1)" class="hud-btn hud-btn-plus flex-1 py-1.5 rounded text-[11px] font-bold uppercase">
+                        +1 Push (Green)
+                    </button>
+                    <button onclick="manualInject(0)" class="hud-btn flex-1 py-1.5 rounded text-[11px] font-bold uppercase">
+                        0 Drift (Blue)
+                    </button>
+                    <button onclick="manualInject(-1)" class="hud-btn hud-btn-minus flex-1 py-1.5 rounded text-[11px] font-bold uppercase">
+                        -1 Pull (Pink)
+                    </button>
+                </div>
+
+                <!-- Sliders -->
+                <div class="space-y-1.5 text-[10px] md:text-[11px]">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Field Velocity:</span>
+                        <input id="forceSlider" type="range" min="0.2" max="3.5" step="0.1" value="1.2" class="w-24 accent-cyan-400 cursor-pointer">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Swirl / Chaos:</span>
+                        <input id="chaosSlider" type="range" min="0" max="2.0" step="0.1" value="0.8" class="w-24 accent-cyan-400 cursor-pointer">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Damping (Friction):</span>
+                        <input id="dragSlider" type="range" min="0.85" max="0.99" step="0.01" value="0.94" class="w-24 accent-cyan-400 cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Right: Ternary Hardware Telemetry HUD -->
+            <div id="cpuPanel" class="hud-panel absolute top-2 right-2 md:top-4 md:right-4 w-64 sm:w-72 md:w-80 p-3 rounded-md z-30 pointer-events-auto">
+                <div class="flex justify-between items-center mb-1 pb-1 border-b border-cyan-500/30">
+                    <h3 class="text-[11px] md:text-xs font-bold text-cyan-400 tracking-wider uppercase glow-cyan">
+                        Hardware Registers
+                    </h3>
+                    <span class="text-[9px] md:text-[10px] text-cyan-400/60">TRIT CPU</span>
+                </div>
+                
+                <div class="grid grid-cols-4 gap-1.5 text-center text-[10px] md:text-xs my-2 font-mono">
+                    <div class="bg-cyan-950/40 p-1 rounded border border-cyan-500/30">
+                        <div class="text-[8px] md:text-[9px] text-gray-400">PC</div>
+                        <div id="regPC" class="font-bold text-cyan-300">00</div>
+                    </div>
+                    <div class="bg-cyan-950/40 p-1 rounded border border-cyan-500/30">
+                        <div class="text-[8px] md:text-[9px] text-gray-400">ACC</div>
+                        <div id="regACC" class="font-bold text-emerald-400">+0</div>
+                    </div>
+                    <div class="bg-cyan-950/40 p-1 rounded border border-cyan-500/30">
+                        <div class="text-[8px] md:text-[9px] text-gray-400">PHASE</div>
+                        <div id="regPHASE" class="font-bold text-cyan-400">+1</div>
+                    </div>
+                    <div class="bg-cyan-950/40 p-1 rounded border border-cyan-500/30">
+                        <div class="text-[8px] md:text-[9px] text-gray-400">ENTROPY</div>
+                        <div id="regEntropy" class="font-bold text-pink-400">0.00</div>
+                    </div>
+                </div>
+
+                <!-- Telemetry Metrics -->
+                <div class="space-y-1 text-[10px] font-mono border-t border-cyan-500/20 pt-1.5">
+                    <div class="flex justify-between"><span class="text-gray-400">Radix Economy:</span><span class="text-cyan-300">1.585 Bits/Trit</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Möbius Lap Cycle:</span><span id="lapCycleVal" class="text-pink-400">0</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Pipeline State:</span><span id="pipelineStatusVal" class="text-emerald-400">STREAMING</span></div>
+                </div>
+
+                <!-- Memory Register Pipeline Grid -->
+                <div class="mt-2 text-[10px]">
+                    <div class="text-gray-400 mb-1 flex justify-between">
+                        <span>PIPELINE REGISTER GRID:</span>
+                        <span id="pipelineHeadVal" class="text-cyan-400">HEAD: 0</span>
+                    </div>
+                    <div id="tritPipelineVisual" class="grid grid-cols-8 gap-1 h-12 bg-black/50 p-1.5 rounded border border-cyan-500/20 font-mono text-[9px]">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Action Controls -->
+            <div id="controlBar" class="absolute bottom-2 right-2 md:bottom-4 md:right-4 z-30 flex gap-2 pointer-events-auto">
+                <button id="pauseBtn" onclick="togglePause()" class="hud-btn px-3 py-1.5 rounded text-[10px] md:text-xs font-semibold uppercase">
+                    Pause
+                </button>
+                <button onclick="resetEngine()" class="hud-btn px-3 py-1.5 rounded text-[10px] md:text-xs font-semibold uppercase text-amber-400 border-amber-400/40 hover:bg-amber-400/20">
+                    Reset
+                </button>
+                <button onclick="toggleSpeed()" class="hud-btn px-3 py-1.5 rounded text-[10px] md:text-xs font-semibold uppercase">
+                    Clock: <span id="clockLabel" class="text-cyan-300">1x Speed</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Sidebar Right: Ternary Code Compiler & Assembler View -->
+        <aside id="compilerSidebar" class="w-full lg:w-88 xl:w-96 h-full hud-panel border-t lg:border-t-0 lg:border-l border-cyan-500/30 p-3 md:p-4 flex flex-col z-30 relative shrink-0">
+            <div class="flex justify-between items-center pb-2 mb-2 border-b border-cyan-500/30">
+                <h2 class="text-xs font-bold text-cyan-400 tracking-wider uppercase glow-cyan">
+                    Balanced Assembly Compiler
+                </h2>
+                <span class="text-[10px] text-emerald-400 glow-green">T3-VM ONLINE</span>
+            </div>
+
+            <!-- Presets Dropdown -->
+            <div class="mb-2.5">
+                <label class="block text-[10px] text-gray-400 mb-1">VISUAL SCRIPT PRESET:</label>
+                <select id="presetSelect" onchange="loadPresetScript()" class="w-full bg-[#080d1a] border border-cyan-500/40 rounded px-2 py-1.5 text-xs text-cyan-300 outline-none focus:border-cyan-400 cursor-pointer">
+                    <option value="mobius">Möbius Twist Sequence</option>
+                    <option value="quantum">Quantum Polarity Shift</option>
+                    <option value="chaos">Chaos Particle Storm</option>
+                    <option value="harmonic">Harmonic Field Resonance</option>
+                </select>
+            </div>
+
+            <!-- Code Editor -->
+            <div class="flex-1 flex flex-col mb-2.5 min-h-[160px] lg:min-h-0">
+                <div class="flex justify-between text-[10px] text-gray-400 mb-1">
+                    <span>ASSEMBLY (.T3)</span>
+                    <span id="lineCountLabel">0 LINES</span>
+                </div>
+                <textarea id="codeEditor" spellcheck="false" class="editor-textarea flex-1 p-2 rounded border border-cyan-500/30 font-mono text-xs leading-relaxed overflow-y-auto">
+                </textarea>
+            </div>
+
+            <!-- Compiler Action Buttons & Machine Code -->
+            <div class="space-y-2">
+                <div class="flex gap-2">
+                    <button onclick="compileCode()" class="hud-btn flex-1 py-2 rounded text-xs font-bold uppercase tracking-wider text-emerald-400 border-emerald-500/50 hover:bg-emerald-500/20">
+                        ⚡ Compile & Run
+                    </button>
+                    <button onclick="stepInstruction()" class="hud-btn px-3 py-2 rounded text-xs font-bold uppercase text-cyan-300">
+                        Step
+                    </button>
+                </div>
+
+                <!-- Raw Trit Stream -->
+                <div class="bg-black/60 p-2 rounded border border-cyan-500/20">
+                    <div class="text-[9px] text-gray-400 mb-1 flex justify-between">
+                        <span>COMPILED BALANCED TRITS (+1, 0, -1):</span>
+                        <span id="tritCountLabel" class="text-cyan-400">0 TRITS</span>
+                    </div>
+                    <div id="compiledTritOutput" class="font-mono text-[10px] text-pink-400 break-all h-12 overflow-y-auto bg-cyan-950/20 p-1.5 rounded border border-pink-500/20 flex flex-wrap gap-1">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <!-- Application Script Engine -->
+    <script>
+        // Visual Assembly Presets
+        const PRESETS = {
+            mobius: `; PRESET: MÖBIUS TWIST SEQUENCE
+; Drives dual-phase Möbius ribbon inversion
+SET ACC, +1
+INJECT +1
+INJECT +1
+ROTATE CW
+PHASE INV
+INJECT -1
+INJECT -1
+ROTATE CCW
+JMP 0`,
+            quantum: `; PRESET: QUANTUM POLARITY SHIFT
+; Oscillates between attraction (-1) and repulsion (+1)
+INJECT +1
+INJECT -1
+INJECT +1
+INJECT -1
+PHASE TOGGLE
+FORCE 2.0
+INV ACC
+JMP 0`,
+            chaos: `; PRESET: CHAOS PARTICLE STORM
+; High entropy vector field storm
+INJECT +1
+INJECT 0
+INJECT -1
+ROTATE CCW
+FORCE 3.2
+SWIRL 1.8
+INJECT -1
+INJECT +1
+JMP 0`,
+            harmonic: `; PRESET: HARMONIC FIELD RESONANCE
+; Balanced resonant standing wave field
+SET ACC, 0
+INJECT +1
+INJECT 0
+INJECT -1
+INJECT 0
+FORCE 1.0
+SWIRL 0.2
+JMP 0`
+        };
+
+        // Synthesizer Audio Context
+        let audioCtx = null;
+        let audioEnabled = false;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function toggleAudio() {
+            initAudio();
+            audioEnabled = !audioEnabled;
+            const el = document.getElementById('audioStatusText');
+            if (audioEnabled) {
+                el.innerText = 'ONLINE';
+                el.className = 'text-emerald-400 glow-green font-bold';
+                playSynthTone(880, 'sine', 0.1, 0.05);
+            } else {
+                el.innerText = 'MUTED';
+                el.className = 'text-pink-500 font-bold';
+            }
+        }
+
+        function playSynthTone(freq, type = 'sine', duration = 0.08, vol = 0.04) {
+            if (!audioEnabled || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        // Engine State Variables
+        let visualizerMode = 'vector'; // 'vector' or 'mobius'
+        let isPaused = false;
+        let clockSpeed = 1;
+        let forceStrength = 1.2;
+        let swirlChaos = 0.8;
+        let dragFactor = 0.94;
+
+        // Ternary CPU Registers
+        let regPC = 0;
+        let regACC = 0;
+        let phaseInverted = false;
+        let lapCycle = 0;
+        let compiledTrits = [];
+        let assemblyInstructions = [];
+        const pipelineSize = 16;
+        let pipelineBuffer = new Int8Array(pipelineSize).fill(0);
+        let pipelineHead = 0;
+
+        // Canvas Setup
+        const mainCanvas = document.getElementById('mainCanvas');
+        const ctx = mainCanvas.getContext('2d');
+
+        // Mouse/Touch Force Field Interaction
+        let pointerPos = { x: -1000, y: -1000, active: false, trit: 1 };
+
+        function updatePointer(e) {
+            const rect = mainCanvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            pointerPos.x = clientX - rect.left;
+            pointerPos.y = clientY - rect.top;
+            pointerPos.active = true;
+        }
+
+        mainCanvas.addEventListener('mousemove', updatePointer);
+        mainCanvas.addEventListener('touchmove', updatePointer, { passive: true });
+        mainCanvas.addEventListener('mouseleave', () => pointerPos.active = false);
+        mainCanvas.addEventListener('touchend', () => pointerPos.active = false);
+
+        // Responsive Scaling
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = mainCanvas.parentElement.getBoundingClientRect();
+            mainCanvas.width = rect.width * dpr;
+            mainCanvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            if (window.innerWidth < 1024) applyMobileView();
+            else resetDesktopView();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // Mobile Responsive Navigation
+        let activeMobileTab = 'canvas';
+        function switchMobileTab(tab) {
+            activeMobileTab = tab;
+            document.getElementById('tabBtnCanvas').classList.toggle('mobile-tab-active', tab === 'canvas');
+            document.getElementById('tabBtnCompiler').classList.toggle('mobile-tab-active', tab === 'compiler');
+            document.getElementById('tabBtnTelemetry').classList.toggle('mobile-tab-active', tab === 'telemetry');
+            applyMobileView();
+        }
+
+        function applyMobileView() {
+            if (window.innerWidth >= 1024) return;
+            const sidebar = document.getElementById('compilerSidebar');
+            const cpuPanel = document.getElementById('cpuPanel');
+            const vectorPanel = document.getElementById('vectorPanel');
+            const viewport = document.getElementById('canvasViewportArea');
+
+            if (activeMobileTab === 'canvas') {
+                viewport.style.display = 'block';
+                sidebar.style.display = 'none';
+                cpuPanel.style.display = 'none';
+                vectorPanel.style.display = 'block';
+            } else if (activeMobileTab === 'compiler') {
+                viewport.style.display = 'none';
+                sidebar.style.display = 'flex';
+                sidebar.style.width = '100%';
+            } else if (activeMobileTab === 'telemetry') {
+                viewport.style.display = 'block';
+                sidebar.style.display = 'none';
+                cpuPanel.style.display = 'block';
+                vectorPanel.style.display = 'block';
+            }
+        }
+
+        function resetDesktopView() {
+            const sidebar = document.getElementById('compilerSidebar');
+            const cpuPanel = document.getElementById('cpuPanel');
+            const vectorPanel = document.getElementById('vectorPanel');
+            const viewport = document.getElementById('canvasViewportArea');
+
+            viewport.style.display = 'block';
+            sidebar.style.display = 'flex';
+            sidebar.style.width = '';
+            cpuPanel.style.display = 'block';
+            vectorPanel.style.display = 'block';
+        }
+
+        // Particle System
+        const particleCount = 1800;
+        let particles = [];
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                const w = mainCanvas.width / (window.devicePixelRatio || 1);
+                const h = mainCanvas.height / (window.devicePixelRatio || 1);
+                this.x = Math.random() * w;
+                this.y = Math.random() * h;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.tritVal = Math.floor(Math.random() * 3) - 1;
+                this.life = Math.random() * 200 + 100;
+            }
+
+            update(vectorAngle, force) {
+                const w = mainCanvas.width / (window.devicePixelRatio || 1);
+                const h = mainCanvas.height / (window.devicePixelRatio || 1);
+
+                // Field Force
+                let effForce = force * forceStrength;
+                if (this.tritVal === 1) {
+                    this.vx += Math.cos(vectorAngle) * effForce;
+                    this.vy += Math.sin(vectorAngle) * effForce;
+                } else if (this.tritVal === -1) {
+                    this.vx -= Math.cos(vectorAngle + swirlChaos) * effForce;
+                    this.vy -= Math.sin(vectorAngle + swirlChaos) * effForce;
+                } else {
+                    this.vx += (Math.random() - 0.5) * 0.2;
+                    this.vy += (Math.random() - 0.5) * 0.2;
+                }
+
+                // Interactive Pointer Force Field
+                if (pointerPos.active) {
+                    const dx = pointerPos.x - this.x;
+                    const dy = pointerPos.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 140 && dist > 1) {
+                        const pull = (140 - dist) / 140 * 0.8;
+                        if (pointerPos.trit === 1) {
+                            this.vx += (dx / dist) * pull;
+                            this.vy += (dy / dist) * pull;
+                        } else if (pointerPos.trit === -1) {
+                            this.vx -= (dx / dist) * pull;
+                            this.vy -= (dy / dist) * pull;
+                        }
+                    }
+                }
+
+                this.vx *= dragFactor;
+                this.vy *= dragFactor;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x < 0) this.x = w;
+                if (this.x > w) this.x = 0;
+                if (this.y < 0) this.y = h;
+                if (this.y > h) this.y = 0;
+
+                this.life--;
+                if (this.life <= 0) this.reset();
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.tritVal !== 0 ? 1.8 : 1.2, 0, Math.PI * 2);
+                if (this.tritVal === 1) ctx.fillStyle = '#00ff66';
+                else if (this.tritVal === -1) ctx.fillStyle = '#ff007f';
+                else ctx.fillStyle = 'rgba(0, 243, 255, 0.6)';
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        // Visualizer Mode Switcher
+        function switchVisualizerMode(mode) {
+            visualizerMode = mode;
+            document.getElementById('modeVectorBtn').classList.toggle('hud-btn-active', mode === 'vector');
+            document.getElementById('modeMobiusBtn').classList.toggle('hud-btn-active', mode === 'mobius');
+        }
+
+        // Render Vector Flow Field
+        function drawVectorField() {
+            const w = mainCanvas.width / (window.devicePixelRatio || 1);
+            const h = mainCanvas.height / (window.devicePixelRatio || 1);
+
+            ctx.fillStyle = 'rgba(3, 3, 8, 0.28)';
+            ctx.fillRect(0, 0, w, h);
+
+            const gridSpacing = 35;
+            const cols = Math.ceil(w / gridSpacing);
+            const rows = Math.ceil(h / gridSpacing);
+
+            ctx.strokeStyle = phaseInverted ? 'rgba(255, 0, 127, 0.12)' : 'rgba(0, 243, 255, 0.12)';
+            ctx.lineWidth = 1;
+
+            const time = performance.now() * 0.001;
+
+            for (let i = 0; i < cols; i++) {
+                for (let j = 0; j < rows; j++) {
+                    const x = i * gridSpacing;
+                    const y = j * gridSpacing;
+
+                    const angle = Math.sin(i * 0.15 + time) + Math.cos(j * 0.15 + time) + (phaseInverted ? Math.PI : 0);
+                    const vx = Math.cos(angle) * (gridSpacing * 0.35);
+                    const vy = Math.sin(angle) * (gridSpacing * 0.35);
+
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x + vx, y + vy);
+                    ctx.stroke();
+                }
+            }
+
+            // Particles Update
+            particles.forEach(p => {
+                const gridX = Math.floor(p.x / gridSpacing);
+                const gridY = Math.floor(p.y / gridSpacing);
+                const angle = Math.sin(gridX * 0.15 + time) + Math.cos(gridY * 0.15 + time) + (phaseInverted ? Math.PI : 0);
+                p.update(angle, forceStrength);
+                p.draw();
+            });
+
+            // Draw Interactive Pointer Ring
+            if (pointerPos.active) {
+                ctx.beginPath();
+                ctx.arc(pointerPos.x, pointerPos.y, 40, 0, Math.PI * 2);
+                ctx.strokeStyle = pointerPos.trit === 1 ? '#00ff66' : (pointerPos.trit === -1 ? '#ff007f' : '#00f3ff');
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        // Render 3D Möbius Ribbon Manifold
+        let mobiusAngle = 0;
+        function draw3DMobiusManifold() {
+            const w = mainCanvas.width / (window.devicePixelRatio || 1);
+            const h = mainCanvas.height / (window.devicePixelRatio || 1);
+
+            ctx.fillStyle = 'rgba(3, 3, 8, 0.4)';
+            ctx.fillRect(0, 0, w, h);
+
+            const cx = w / 2;
+            const cy = h / 2;
+            const radius = Math.min(cx, cy) * 0.55;
+            const stripWidth = 40;
+
+            mobiusAngle += 0.008;
+
+            const segments = 120;
+            for (let i = 0; i < segments; i++) {
+                const u1 = (i / segments) * Math.PI * 2;
+                const u2 = ((i + 1) / segments) * Math.PI * 2;
+
+                function getMobiusPoint(u, offset) {
+                    const twistedOffset = offset * Math.cos(u / 2);
+                    const z = offset * Math.sin(u / 2);
+                    const r = radius + twistedOffset;
+
+                    const angle = u + mobiusAngle;
+                    const x3d = r * Math.cos(angle);
+                    const y3d = r * Math.sin(angle);
+
+                    const scale = 320 / (320 + z);
+                    const x2d = cx + x3d * scale;
+                    const y2d = cy + y3d * 0.45 * scale;
+                    return { x: x2d, y: y2d };
+                }
+
+                const p1 = getMobiusPoint(u1, -stripWidth);
+                const p2 = getMobiusPoint(u1, stripWidth);
+                const p3 = getMobiusPoint(u2, stripWidth);
+                const p4 = getMobiusPoint(u2, -stripWidth);
+
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.lineTo(p3.x, p3.y);
+                ctx.lineTo(p4.x, p4.y);
+                ctx.closePath();
+
+                ctx.fillStyle = (i % 2 === 0) 
+                    ? (phaseInverted ? 'rgba(255, 0, 127, 0.08)' : 'rgba(0, 243, 255, 0.08)')
+                    : 'rgba(10, 15, 30, 0.5)';
+                ctx.strokeStyle = phaseInverted ? 'rgba(255, 0, 127, 0.25)' : 'rgba(0, 243, 255, 0.25)';
+                ctx.lineWidth = 1;
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // Render Animated Pipeline Markers Travelling on Ribbon
+            for (let i = 0; i < pipelineSize; i++) {
+                const u = (i / pipelineSize) * Math.PI * 2 + mobiusAngle * 2;
+                const r = radius;
+                const x3d = r * Math.cos(u);
+                const y3d = r * Math.sin(u);
+                const scale = 320 / (320 + 0);
+
+                const x = cx + x3d * scale;
+                const y = cy + y3d * 0.45 * scale;
+
+                const val = pipelineBuffer[i];
+                let color = '#00f3ff';
+                if (val === 1) color = '#00ff66';
+                if (val === -1) color = '#ff007f';
+
+                ctx.beginPath();
+                ctx.arc(x, y, i === pipelineHead ? 7 : 4, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+
+                if (i === pipelineHead) {
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Manual Trit Injector
+        function manualInject(trit) {
+            pointerPos.trit = trit;
+            pipelineBuffer[pipelineHead] = trit;
+            pipelineHead = (pipelineHead + 1) % pipelineSize;
+            updatePipelineVisual();
+
+            if (trit === 1) playSynthTone(523.25, 'sine', 0.08, 0.05);
+            if (trit === 0) playSynthTone(329.63, 'triangle', 0.05, 0.03);
+            if (trit === -1) playSynthTone(220.00, 'sawtooth', 0.08, 0.05);
+        }
+
+        // Compiler Logic
+        function loadPresetScript() {
+            const key = document.getElementById('presetSelect').value;
+            const code = PRESETS[key] || PRESETS.mobius;
+            document.getElementById('codeEditor').value = code;
+            compileCode();
+        }
+
+        function compileCode() {
+            const code = document.getElementById('codeEditor').value;
+            const lines = code.split('\n');
+            document.getElementById('lineCountLabel').innerText = `${lines.length} LINES`;
+
+            compiledTrits = [];
+            assemblyInstructions = [];
+
+            lines.forEach(line => {
+                const clean = line.split(';')[0].trim().toUpperCase();
+                if (!clean) return;
+
+                assemblyInstructions.push(clean);
+
+                if (clean.startsWith('INJECT')) {
+                    if (clean.includes('+1')) compiledTrits.push(1);
+                    else if (clean.includes('-1')) compiledTrits.push(-1);
+                    else compiledTrits.push(0);
+                } else if (clean.startsWith('SET ACC')) {
+                    if (clean.includes('+1')) compiledTrits.push(1);
+                    else if (clean.includes('-1')) compiledTrits.push(-1);
+                    else compiledTrits.push(0);
+                } else if (clean.startsWith('PHASE')) {
+                    compiledTrits.push(-1);
+                } else {
+                    compiledTrits.push(0);
+                }
+            });
+
+            regPC = 0;
+            renderCompiledTritStream();
+            playSynthTone(783.99, 'sine', 0.12, 0.06);
+        }
+
+        function renderCompiledTritStream() {
+            const out = document.getElementById('compiledTritOutput');
+            document.getElementById('tritCountLabel').innerText = `${compiledTrits.length} TRITS`;
+            out.innerHTML = compiledTrits.map((t, idx) => {
+                let badgeClass = t === 1 ? 'trit-badge-pos' : (t === -1 ? 'trit-badge-neg' : 'trit-badge-zero');
+                let displayVal = t === 1 ? '+1' : (t === -1 ? '-1' : '0');
+                let activeBorder = idx === regPC ? 'ring-1 ring-white' : '';
+                return `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${badgeClass} ${activeBorder}">${displayVal}</span>`;
+            }).join('');
+        }
+
+        function stepInstruction() {
+            if (assemblyInstructions.length === 0) return;
+
+            const inst = assemblyInstructions[regPC % assemblyInstructions.length];
+            
+            if (inst.startsWith('INJECT')) {
+                let val = inst.includes('+1') ? 1 : (inst.includes('-1') ? -1 : 0);
+                manualInject(val);
+            } else if (inst.startsWith('SET ACC')) {
+                regACC = inst.includes('+1') ? 1 : (inst.includes('-1') ? -1 : 0);
+            } else if (inst.startsWith('PHASE INV') || inst.startsWith('PHASE TOGGLE')) {
+                phaseInverted = !phaseInverted;
+                lapCycle++;
+            } else if (inst.startsWith('FORCE')) {
+                const parts = inst.split(' ');
+                if (parts[1]) forceStrength = parseFloat(parts[1]) || 1.2;
+            } else if (inst.startsWith('SWIRL')) {
+                const parts = inst.split(' ');
+                if (parts[1]) swirlChaos = parseFloat(parts[1]) || 0.8;
+            }
+
+            regPC = (regPC + 1) % assemblyInstructions.length;
+            updateTelemetryDisplay();
+            renderCompiledTritStream();
+        }
+
+        function updatePipelineVisual() {
+            const visual = document.getElementById('tritPipelineVisual');
+            document.getElementById('pipelineHeadVal').innerText = `HEAD: ${pipelineHead}`;
+            visual.innerHTML = Array.from(pipelineBuffer).map((val, idx) => {
+                let bg = val === 1 ? 'bg-emerald-500/30 text-emerald-400 border-emerald-500/50' :
+                        (val === -1 ? 'bg-pink-500/30 text-pink-400 border-pink-500/50' : 'bg-cyan-950/40 text-cyan-400 border-cyan-500/30');
+                let isHead = idx === pipelineHead ? 'ring-1 ring-white' : '';
+                let displayVal = val === 1 ? '+1' : (val === -1 ? '-1' : '0');
+                return `<div class="flex items-center justify-center font-bold rounded border ${bg} ${isHead}">${displayVal}</div>`;
+            }).join('');
+        }
+
+        function updateTelemetryDisplay() {
+            document.getElementById('regPC').innerText = String(regPC).padStart(2, '0');
+            document.getElementById('regACC').innerText = regACC > 0 ? `+${regACC}` : `${regACC}`;
+            document.getElementById('regPHASE').innerText = phaseInverted ? '-1' : '+1';
+            document.getElementById('regPHASE').className = phaseInverted ? 'font-bold text-pink-500' : 'font-bold text-cyan-400';
+            document.getElementById('lapCycleVal').innerText = lapCycle;
+
+            let nonZero = pipelineBuffer.filter(v => v !== 0).length;
+            let entropy = (nonZero / pipelineSize) * 1.585;
+            document.getElementById('regEntropy').innerText = entropy.toFixed(2);
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            document.getElementById('pauseBtn').innerText = isPaused ? 'Resume' : 'Pause';
+        }
+
+        function toggleSpeed() {
+            if (clockSpeed === 1) clockSpeed = 2;
+            else if (clockSpeed === 2) clockSpeed = 4;
+            else clockSpeed = 1;
+            document.getElementById('clockLabel').innerText = `${clockSpeed}x Speed`;
+        }
+
+        function resetEngine() {
+            regPC = 0;
+            regACC = 0;
+            phaseInverted = false;
+            lapCycle = 0;
+            pipelineBuffer.fill(0);
+            pipelineHead = 0;
+            initParticles();
+            updatePipelineVisual();
+            updateTelemetryDisplay();
+            playSynthTone(150, 'sawtooth', 0.2, 0.05);
+        }
+
+        // FPS Metrics
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+
+        // Main Animation Loop
+        function animate() {
+            const now = performance.now();
+            frameCount++;
+            if (now - lastFrameTime >= 1000) {
+                document.getElementById('fpsVal').innerText = frameCount;
+                frameCount = 0;
+                lastFrameTime = now;
+            }
+
+            if (!isPaused) {
+                if (frameCount % Math.max(1, Math.floor(12 / clockSpeed)) === 0) {
+                    stepInstruction();
+                }
+
+                if (visualizerMode === 'vector') {
+                    drawVectorField();
+                } else {
+                    draw3DMobiusManifold();
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize App
+        window.onload = function() {
+            resizeCanvas();
+            initParticles();
+            loadPresetScript();
+            updatePipelineVisual();
+            updateTelemetryDisplay();
+
+            document.getElementById('forceSlider').addEventListener('input', (e) => forceStrength = parseFloat(e.target.value));
+            document.getElementById('chaosSlider').addEventListener('input', (e) => swirlChaos = parseFloat(e.target.value));
+            document.getElementById('dragSlider').addEventListener('input', (e) => dragFactor = parseFloat(e.target.value));
+
+            animate();
+        };
+    </script>
+</body>
+</html>
+```
